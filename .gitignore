@@ -1,0 +1,11 @@
+node_modules/
+coverage/
+*.tsbuildinfo
+*.log
+.container-pr-inspector/
+.DS_Store
+
+# The root Action bundle is intentionally committed.
+dist/*
+!dist/index.js
+!dist/package.json
