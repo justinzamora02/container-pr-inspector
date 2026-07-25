@@ -130,8 +130,9 @@ pnpm install
 pnpm verify
 ```
 
-The committed `dist/index.js` is the Node 24 Action bundle. CI rejects bundle
-drift.
+The `dist/` directory is generated and ignored on source branches. Release
+automation adds the Node 24 Action bundle only to release tags so that published
+Action references remain directly executable.
 
 ## License
 
