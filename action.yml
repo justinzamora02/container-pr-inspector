@@ -1,0 +1,42 @@
+name: Container PR Inspector
+description: Compare Docker images across a pull request without executing fork Dockerfiles.
+author: Container PR Inspector contributors
+branding:
+  icon: search
+  color: blue
+inputs:
+  config-path:
+    description: Path to the version 1 configuration file.
+    required: false
+    default: .container-pr-inspector.yml
+  github-token:
+    description: Token used only for PR comments and artifact metadata.
+    required: false
+    default: ${{ github.token }}
+  comment:
+    description: Update a same-repository PR comment.
+    required: false
+    default: 'true'
+  upload-artifact:
+    description: Upload the versioned JSON result.
+    required: false
+    default: 'true'
+  artifact-name:
+    description: Artifact name. Defaults to container-pr-inspector-pr-<number>.
+    required: false
+outputs:
+  conclusion:
+    description: Final result conclusion.
+  result-path:
+    description: Absolute path to the JSON result.
+  base-sha:
+    description: Frozen pull-request base SHA.
+  head-sha:
+    description: Pull-request head SHA.
+  base-digest:
+    description: First resolved base-image digest.
+  regression-count:
+    description: Number of new findings across all targets.
+runs:
+  using: node24
+  main: dist/index.js
