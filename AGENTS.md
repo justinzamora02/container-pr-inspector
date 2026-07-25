@@ -32,10 +32,10 @@
 
 ## Generated files
 
-- `dist/index.js` and `dist/package.json` are the committed Node 24 GitHub
-  Action bundle.
-- Do not edit the bundle by hand. Regenerate it with `pnpm bundle`.
-- CI verifies that regenerating the bundle produces no diff.
+- `dist/` is generated and must not be committed to source branches.
+- Do not edit generated output by hand. Regenerate it with `pnpm bundle`.
+- Release automation adds `dist/index.js` and `dist/package.json` only to
+  release tags so the published GitHub Action remains executable.
 
 ## Validation
 

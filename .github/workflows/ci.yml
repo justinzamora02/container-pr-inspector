@@ -28,9 +28,7 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - if: matrix.node == 24
-        run: |
-          pnpm bundle
-          git diff --exit-code -- dist/index.js dist/package.json
+        run: pnpm bundle
       - if: matrix.node == 24
         run: pnpm pack --pack-destination "$RUNNER_TEMP"
 
