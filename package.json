@@ -4,6 +4,10 @@
   "description": "Compare Docker images across pull request revisions and enforce regression policy.",
   "license": "MIT",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/justinzamora02/container-pr-inspector.git"
+  },
   "packageManager": "pnpm@10.13.1",
   "bin": {
     "container-pr-inspector": "./dist/cli.js"
