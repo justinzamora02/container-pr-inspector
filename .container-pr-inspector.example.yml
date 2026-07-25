@@ -1,0 +1,13 @@
+version: 1
+
+targets:
+  - name: app
+    dockerfile: Dockerfile
+    context: .
+    baseImage: ghcr.io/${owner}/${repo}:${sha}
+
+scanners:
+  trivy: true
+  syft: true
+
+gates: {}
