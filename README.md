@@ -134,6 +134,20 @@ The `dist/` directory is generated and ignored on source branches. Release
 automation adds the Node 24 Action bundle only to release tags so that published
 Action references remain directly executable.
 
+## Releasing
+
+Before releasing, update the matching version in `package.json` and
+`src/version.ts`, then merge the verified changes into `master`. Create and
+publish a GitHub Release from that commit with the tag `v<package-version>`.
+Publishing the release verifies the tag and package versions, runs the full
+verification suite, adds the generated Action bundle to the release tag,
+publishes the npm package, and advances the floating major Action tag (for
+example, `v1`) for stable releases. Prereleases are published under the npm
+`next` tag and do not move the floating Action tag.
+
+The npm package must trust the GitHub Actions publisher for this repository and
+the workflow filename `release.yml`.
+
 ## License
 
 MIT

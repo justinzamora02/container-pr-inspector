@@ -1,51 +1,81 @@
 name: Release
 
 on:
-  push:
-    branches: [master]
+  release:
+    types: [published]
 
 permissions:
   contents: write
-  pull-requests: write
   id-token: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - id: release
-        uses: googleapis/release-please-action@v4
+      - name: Check out the release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          config-file: release-please-config.json
-          manifest-file: .release-please-manifest.json
-      - if: steps.release.outputs.releases_created == 'true'
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ steps.release.outputs.tag_name }}
-      - if: steps.release.outputs.releases_created == 'true'
-        uses: pnpm/action-setup@v4
+          ref: ${{ github.event.release.tag_name }}
+      - name: Set up pnpm
+        uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
         with:
           version: 10.13.1
-      - if: steps.release.outputs.releases_created == 'true'
-        uses: actions/setup-node@v7
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
-      - if: steps.release.outputs.releases_created == 'true'
+          package-manager-cache: false
+      - name: Validate release metadata
+        env:
+          IS_PRERELEASE: ${{ github.event.release.prerelease }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          package_version="$(node --print "require('./package.json').version")"
+          expected_tag="v${package_version}"
+
+          if [[ "$RELEASE_TAG" != "$expected_tag" ]]; then
+            echo "::error::Release tag ${RELEASE_TAG} does not match package version ${package_version}; expected ${expected_tag}."
+            exit 1
+          fi
+
+          if [[ "$IS_PRERELEASE" == "true" && "$package_version" != *-* ]]; then
+            echo "::error::A GitHub prerelease must use a prerelease package version."
+            exit 1
+          fi
+
+          if [[ "$IS_PRERELEASE" != "true" && "$package_version" == *-* ]]; then
+            echo "::error::A stable GitHub release cannot use a prerelease package version."
+            exit 1
+          fi
+      - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      - if: steps.release.outputs.releases_created == 'true'
+      - name: Verify
         run: pnpm verify
-      - if: steps.release.outputs.releases_created == 'true'
-        name: Add the Action bundle to the release ref
+      - name: Add the Action bundle to the release ref
+        env:
+          IS_PRERELEASE: ${{ github.event.release.prerelease }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add --force dist/index.js dist/package.json
-          git commit -m "chore: bundle action for ${{ steps.release.outputs.tag_name }}"
-          git tag --force "${{ steps.release.outputs.tag_name }}"
-          git tag --force v1
-          git push --force origin \
-            "refs/tags/${{ steps.release.outputs.tag_name }}" \
-            refs/tags/v1
-      - if: steps.release.outputs.releases_created == 'true'
-        run: pnpm publish --no-git-checks
+          git commit -m "chore: bundle action for ${RELEASE_TAG}"
+          git tag --force "$RELEASE_TAG"
+
+          tags=("refs/tags/${RELEASE_TAG}")
+          if [[ "$IS_PRERELEASE" != "true" ]]; then
+            major_tag="${RELEASE_TAG%%.*}"
+            git tag --force "$major_tag"
+            tags+=("refs/tags/${major_tag}")
+          fi
+
+          git push --atomic --force origin "${tags[@]}"
+      - name: Publish the npm package
+        env:
+          NPM_DIST_TAG: ${{ github.event.release.prerelease && 'next' || 'latest' }}
+        run: npm publish --tag "$NPM_DIST_TAG"
