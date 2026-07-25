@@ -13,7 +13,7 @@ describe("VERSION", () => {
     expect(VERSION).toBe(packageJson.version);
   });
 
-  it("is synchronized from the release tag before verification", () => {
+  it("has its package metadata synchronized before release verification", () => {
     const workflow = readFileSync(
       new URL("../.github/workflows/release.yml", import.meta.url),
       "utf8"
@@ -29,6 +29,7 @@ describe("VERSION", () => {
     expect(workflow).toContain(
       'npm version "$release_version" \\\n'
     );
-    expect(workflow).toContain("git add package.json src/version.ts");
+    expect(workflow).toContain("git add package.json");
+    expect(workflow).not.toContain("git add package.json src/version.ts");
   });
 });

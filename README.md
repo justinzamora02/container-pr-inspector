@@ -138,12 +138,12 @@ Action references remain directly executable.
 
 Create and publish a GitHub Release from a `master` commit with a canonical
 SemVer tag such as `v1.2.3`. Publishing the release synchronizes `package.json`
-and `src/version.ts` to the tag, runs the full verification suite, adds the
-version metadata and generated Action bundle to the release tag, publishes the
-npm package, and advances the floating major Action tag (for example, `v1`) for
-stable releases. Prereleases must use a prerelease tag such as `v1.2.3-rc.1`;
-they are published under the npm `next` tag and do not move the floating Action
-tag.
+to the tag, runs the full verification suite, adds the version metadata and
+generated Action bundle to the release tag, publishes the npm package, and
+advances the floating major Action tag (for example, `v1`) for stable releases.
+The runtime version is always read from `package.json`. Prereleases must use a
+prerelease tag such as `v1.2.3-rc.1`; they are published under the npm `next`
+tag and do not move the floating Action tag.
 
 The npm package must trust the GitHub Actions publisher for this repository and
 the workflow filename `release.yml`.
