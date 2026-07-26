@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { inspect } from "./application.js";
 import { runCommand } from "./core/process.js";
 
-describe.sequential("static fork pipeline", () => {
+describe("static fork pipeline", { concurrent: false }, () => {
   it("scopes Trivy findings to each configured Dockerfile", async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "cpi-static-targets-"));
     const tools = await mkdtemp(path.join(os.tmpdir(), "cpi-static-tools-"));
