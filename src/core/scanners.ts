@@ -77,6 +77,11 @@ function parseJson(source: string, adapter: string): unknown {
   }
 }
 
+function packageCoordinate(purl: string | undefined, name: string): string {
+  const withoutQualifiers = purl?.split(/[?#]/, 1)[0];
+  return withoutQualifiers?.replace(/@[^/]+$/, "") || name;
+}
+
 export function trivyVulnerabilities(
   document: TrivyDocument,
   target: string
@@ -89,7 +94,7 @@ export function trivyVulnerabilities(
       const version = vulnerability.InstalledVersion ?? "unknown";
       const purl = vulnerability.PkgIdentifier?.PURL;
       findings.push({
-        identity: `vulnerability:${id}:${purl ?? name}:${version}`,
+        identity: `vulnerability:${id}:${packageCoordinate(purl, name)}`,
         target,
         kind: "vulnerability",
         severity: normalizeSeverity(vulnerability.Severity),
@@ -321,7 +326,7 @@ export class ScannerSession {
   }
 
   async scanConfiguration(
-    repositoryRoot: string,
+    scanPath: string,
     target: string
   ): Promise<RawFinding[]> {
     if (!this.trivyPath || !this.config.scanners.trivy) {
@@ -339,7 +344,7 @@ export class ScannerSession {
         "json",
         "--misconfig-scanners",
         "dockerfile",
-        repositoryRoot
+        scanPath
       ],
       {
         cwd: os.tmpdir(),

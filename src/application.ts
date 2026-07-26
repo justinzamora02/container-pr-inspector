@@ -2,7 +2,8 @@ import { access } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import {
   loadConfig,
-  resolveTargetPaths
+  resolveTargetPaths,
+  validateTargetPaths
 } from "./core/config.js";
 import {
   buildImage,
@@ -212,9 +213,15 @@ export async function inspect(options: InspectionOptions): Promise<InspectionRes
           warnings: []
         };
         try {
+          await validateTargetPaths(loaded, target, headRef.root);
+          const { dockerfile: dockerfilePath } = resolveTargetPaths(
+            loaded,
+            target,
+            headRef.root
+          );
           const [dockerfile, trivyFindings] = await Promise.all([
-            inspectDockerfileStatically(loaded, target),
-            scannerSession.scanConfiguration(headRef.root, target.name)
+            inspectDockerfileStatically(dockerfilePath, target.name),
+            scannerSession.scanConfiguration(dockerfilePath, target.name)
           ]);
           const raw = [...dockerfile.findings, ...trivyFindings];
           result.findings = calculateDelta([], raw);
