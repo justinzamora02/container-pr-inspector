@@ -1,6 +1,6 @@
 {
   "name": "container-pr-inspector",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Compare Docker images across pull request revisions and enforce regression policy.",
   "license": "MIT",
   "type": "module",
@@ -16,7 +16,6 @@
     "dist/cli.js",
     "dist/cli-arguments.js",
     "dist/application.js",
-    "dist/version.js",
     "dist/core/**/*.js",
     "schema",
     "README.md",
