@@ -27,7 +27,7 @@
         "repository": { "type": "string" },
         "baseSha": { "type": "string" },
         "headSha": { "type": "string", "minLength": 1 },
-        "platform": { "type": "object" }
+        "platform": { "$ref": "#/definitions/platform" }
       }
     },
     "tools": {
@@ -37,29 +37,17 @@
       "properties": {
         "inspectorVersion": { "type": "string" },
         "nodeVersion": { "type": "string" },
-        "adapters": { "type": "array", "items": { "type": "object" } }
+        "adapters": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/adapter" }
+        }
       }
     },
     "targets": {
       "type": "array",
-      "items": {
-        "type": "object",
-        "required": [
-          "name",
-          "configuration",
-          "adapters",
-          "sbom",
-          "vulnerabilities",
-          "findings",
-          "policy",
-          "warnings"
-        ]
-      }
+      "items": { "$ref": "#/definitions/targetResult" }
     },
-    "policy": {
-      "type": "object",
-      "required": ["reportOnly", "status", "evaluations"]
-    },
+    "policy": { "$ref": "#/definitions/policy" },
     "conclusion": {
       "enum": [
         "passed",
@@ -74,6 +62,300 @@
         "reporting-failed"
       ]
     },
-    "warnings": { "type": "array", "items": { "type": "string" } }
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "definitions": {
+    "severity": {
+      "enum": ["critical", "high", "medium", "low", "unknown"]
+    },
+    "platform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["os", "architecture"],
+      "properties": {
+        "os": { "type": "string" },
+        "architecture": { "type": "string" },
+        "variant": { "type": "string" }
+      }
+    },
+    "healthcheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["test"],
+      "properties": {
+        "test": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "interval": { "type": "number" },
+        "timeout": { "type": "number" },
+        "retries": { "type": "number" },
+        "startPeriod": { "type": "number" }
+      }
+    },
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reference",
+        "imageId",
+        "platform",
+        "sizeBytes",
+        "layers",
+        "user"
+      ],
+      "properties": {
+        "reference": { "type": "string" },
+        "digest": { "type": "string" },
+        "imageId": { "type": "string" },
+        "revision": { "type": "string" },
+        "platform": { "$ref": "#/definitions/platform" },
+        "sizeBytes": { "type": "number", "minimum": 0 },
+        "layers": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "user": { "type": "string" },
+        "healthcheck": { "$ref": "#/definitions/healthcheck" }
+      }
+    },
+    "adapter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "state"],
+      "properties": {
+        "name": { "enum": ["docker", "trivy", "syft", "dockerfile"] },
+        "state": { "enum": ["completed", "skipped", "failed"] },
+        "version": { "type": "string" },
+        "reason": { "type": "string" },
+        "database": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "updatedAt": { "type": "string" },
+            "version": { "type": "string" }
+          }
+        }
+      }
+    },
+    "buildConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["args"],
+      "properties": {
+        "target": { "type": "string" },
+        "args": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    },
+    "targetConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "dockerfile",
+        "context",
+        "baseImage",
+        "build"
+      ],
+      "properties": {
+        "name": { "type": "string" },
+        "dockerfile": { "type": "string" },
+        "context": { "type": "string" },
+        "baseImage": { "type": "string" },
+        "build": { "$ref": "#/definitions/buildConfig" }
+      }
+    },
+    "sbomSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format", "componentCount"],
+      "properties": {
+        "format": { "const": "CycloneDX" },
+        "componentCount": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "severityCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["critical", "high", "medium", "low", "unknown"],
+      "properties": {
+        "critical": { "type": "integer", "minimum": 0 },
+        "high": { "type": "integer", "minimum": 0 },
+        "medium": { "type": "integer", "minimum": 0 },
+        "low": { "type": "integer", "minimum": 0 },
+        "unknown": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "vulnerabilitySummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total", "bySeverity"],
+      "properties": {
+        "total": { "type": "integer", "minimum": 0 },
+        "bySeverity": { "$ref": "#/definitions/severityCounts" }
+      }
+    },
+    "package": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "type": "string" },
+        "version": { "type": "string" },
+        "purl": { "type": "string" }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "identity",
+        "target",
+        "kind",
+        "status",
+        "severity",
+        "title"
+      ],
+      "properties": {
+        "id": { "type": "string" },
+        "identity": { "type": "string" },
+        "target": { "type": "string" },
+        "kind": {
+          "enum": [
+            "vulnerability",
+            "package",
+            "misconfiguration",
+            "adapter"
+          ]
+        },
+        "status": { "enum": ["new", "resolved", "unchanged"] },
+        "severity": { "$ref": "#/definitions/severity" },
+        "title": { "type": "string" },
+        "vulnerabilityId": { "type": "string" },
+        "package": { "$ref": "#/definitions/package" },
+        "message": { "type": "string" }
+      }
+    },
+    "gateEvaluation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gate", "status"],
+      "properties": {
+        "gate": { "type": "string" },
+        "status": { "enum": ["passed", "failed", "not-evaluated"] },
+        "actual": { "type": ["number", "string", "boolean"] },
+        "limit": { "type": ["number", "string", "boolean"] },
+        "reason": { "type": "string" }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reportOnly", "status", "evaluations"],
+      "properties": {
+        "reportOnly": { "type": "boolean" },
+        "status": { "enum": ["passed", "failed", "neutral"] },
+        "evaluations": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/gateEvaluation" }
+        }
+      }
+    },
+    "baseResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "verification"],
+      "properties": {
+        "sha": { "type": "string" },
+        "source": { "enum": ["registry", "build-fallback", "none"] },
+        "verification": {
+          "enum": [
+            "verified",
+            "not-found",
+            "pull-failed",
+            "missing-digest",
+            "missing-revision",
+            "revision-mismatch",
+            "not-applicable"
+          ]
+        },
+        "verificationMessage": { "type": "string" },
+        "image": { "$ref": "#/definitions/image" }
+      }
+    },
+    "headResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sha"],
+      "properties": {
+        "sha": { "type": "string" },
+        "image": { "$ref": "#/definitions/image" }
+      }
+    },
+    "targetResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "configuration",
+        "adapters",
+        "sbom",
+        "vulnerabilities",
+        "findings",
+        "policy",
+        "warnings"
+      ],
+      "properties": {
+        "name": { "type": "string" },
+        "configuration": { "$ref": "#/definitions/targetConfig" },
+        "base": { "$ref": "#/definitions/baseResult" },
+        "head": { "$ref": "#/definitions/headResult" },
+        "adapters": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/adapter" }
+        },
+        "sbom": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "base": { "$ref": "#/definitions/sbomSummary" },
+            "head": { "$ref": "#/definitions/sbomSummary" }
+          }
+        },
+        "vulnerabilities": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "base": { "$ref": "#/definitions/vulnerabilitySummary" },
+            "head": { "$ref": "#/definitions/vulnerabilitySummary" }
+          }
+        },
+        "findings": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/finding" }
+        },
+        "policy": { "$ref": "#/definitions/policy" },
+        "warnings": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "error": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["code", "message"],
+          "properties": {
+            "code": { "type": "string" },
+            "message": { "type": "string" }
+          }
+        }
+      }
+    }
   }
 }

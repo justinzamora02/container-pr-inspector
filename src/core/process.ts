@@ -22,7 +22,12 @@ export interface CommandResult {
 }
 
 export function displayCommand(command: string, args: string[]): string {
-  return [command, ...args]
+  const displayedArgs = args.map((argument, index) =>
+    args[index - 1] === "--build-arg"
+      ? `${argument.split("=", 1)[0] ?? "build-arg"}=[REDACTED]`
+      : argument
+  );
+  return [command, ...displayedArgs]
     .map((part) => (/^[A-Za-z0-9_./:@=-]+$/.test(part) ? part : JSON.stringify(part)))
     .join(" ");
 }

@@ -6,6 +6,35 @@ import {
 } from "./scanners.js";
 
 describe("scanner fixture normalization", () => {
+  it("keeps vulnerability identity stable across package upgrades", () => {
+    const finding = (version: string) =>
+      trivyVulnerabilities(
+        {
+          Results: [
+            {
+              Vulnerabilities: [
+                {
+                  VulnerabilityID: "CVE-2026-1",
+                  PkgName: "openssl",
+                  InstalledVersion: version,
+                  Severity: "HIGH",
+                  PkgIdentifier: {
+                    PURL: `pkg:apk/alpine/openssl@${version}?arch=x86_64`
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "app"
+      )[0];
+
+    expect(finding("1.0")?.identity).toBe(
+      "vulnerability:CVE-2026-1:pkg:apk/alpine/openssl"
+    );
+    expect(finding("1.1")?.identity).toBe(finding("1.0")?.identity);
+  });
+
   it("normalizes Trivy vulnerabilities into stable coordinates", () => {
     const findings = trivyVulnerabilities(
       {
@@ -26,7 +55,7 @@ describe("scanner fixture normalization", () => {
       "app"
     );
     expect(findings[0]).toMatchObject({
-      identity: "vulnerability:CVE-2026-1:pkg:apk/openssl@1.0:1.0",
+      identity: "vulnerability:CVE-2026-1:pkg:apk/openssl",
       severity: "high",
       vulnerabilityId: "CVE-2026-1"
     });

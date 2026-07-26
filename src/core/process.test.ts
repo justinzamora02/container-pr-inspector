@@ -1,7 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { runCommand } from "./process.js";
+import { displayCommand, runCommand } from "./process.js";
 
 describe("process adapter", () => {
+  it("redacts build argument values from diagnostic commands", () => {
+    const displayed = displayCommand("docker", [
+      "buildx",
+      "build",
+      "--build-arg",
+      "NPM_TOKEN=supersecret",
+      "."
+    ]);
+    expect(displayed).toContain("NPM_TOKEN=[REDACTED]");
+    expect(displayed).not.toContain("supersecret");
+  });
+
   it("captures successful output without a shell", async () => {
     const result = await runCommand(
       process.execPath,

@@ -1,7 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { resolveTargetPaths } from "./config.js";
 import type { RawFinding } from "./normalize.js";
-import type { LoadedConfig, TargetConfig } from "./types.js";
 
 interface StaticDockerfile {
   user: string;
@@ -18,10 +16,9 @@ function logicalLines(source: string): string[] {
 }
 
 export async function inspectDockerfileStatically(
-  loaded: LoadedConfig,
-  target: TargetConfig
+  dockerfile: string,
+  target: string
 ): Promise<StaticDockerfile> {
-  const { dockerfile } = resolveTargetPaths(loaded, target);
   const source = await readFile(dockerfile, "utf8");
   const lines = logicalLines(source);
   let user = "";
@@ -53,7 +50,7 @@ export async function inspectDockerfileStatically(
   if (normalizedUser === "" || normalizedUser === "root" || normalizedUser === "0") {
     findings.push({
       identity: "misconfiguration:dockerfile:root-user",
-      target: target.name,
+      target,
       kind: "misconfiguration",
       severity: "high",
       title: "Final Dockerfile stage may run as root",
@@ -66,7 +63,7 @@ export async function inspectDockerfileStatically(
   if (!hasHealthcheck) {
     findings.push({
       identity: "misconfiguration:dockerfile:missing-healthcheck",
-      target: target.name,
+      target,
       kind: "misconfiguration",
       severity: "low",
       title: "Final Dockerfile stage has no HEALTHCHECK"
