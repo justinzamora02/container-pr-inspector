@@ -1,8 +1,8 @@
 # Container PR Inspector
 
-`container-pr-inspector` is one TypeScript tool with two invocation surfaces:
-an npm CLI and a bundled GitHub Action. Both call the same inspection pipeline,
-policy evaluator, result schema, and renderers.
+`container-pr-inspector` is a bundled GitHub Action for inspecting container
+changes in pull requests. Its Action and local development entry points call
+the same inspection pipeline, policy evaluator, result schema, and renderers.
 
 It compares Docker images for two Git revisions, reports size and metadata
 changes, identifies package and vulnerability deltas with Syft and Trivy, and
@@ -11,7 +11,6 @@ separate static-only mode that never invokes Docker or executes repository code.
 
 ## Requirements
 
-- Node.js 24 or newer for the CLI
 - Linux with Docker and BuildKit for image inspection
 - Trivy and Syft on `PATH` for local scans; missing tools are reported explicitly
 - A local Git repository containing the referenced commits
@@ -19,23 +18,27 @@ separate static-only mode that never invokes Docker or executes repository code.
 The GitHub Action downloads pinned Trivy 0.72.0 and Syft 1.44.0 archives,
 verifies their committed SHA-256 values, and caches the verified tools.
 
-## CLI
+## Local development CLI
 
 ```sh
-npm install --global container-pr-inspector
+pnpm install
+pnpm build
 
-container-pr-inspector compare \
+node dist/cli.js compare \
   --base-sha "$BASE_SHA" \
   --head-sha WORKTREE \
   --config .container-pr-inspector.yml \
   --format terminal
 
-container-pr-inspector audit \
+node dist/cli.js audit \
   --ref WORKTREE \
   --config .container-pr-inspector.yml \
   --format json \
   --output result.json
 ```
+
+The CLI is not currently published to npm. Node.js 24 or newer is required to
+run it locally.
 
 Repository template values are resolved from `--repository owner/repo`,
 `GITHUB_REPOSITORY`, or a recognizable GitHub `origin` URL, in that order.
@@ -139,14 +142,10 @@ Action references remain directly executable.
 Create and publish a GitHub Release from a `master` commit with a canonical
 SemVer tag such as `v1.2.3`. Publishing the release synchronizes `package.json`
 to the tag, runs the full verification suite, adds the version metadata and
-generated Action bundle to the release tag, publishes the npm package, and
-advances the floating major Action tag (for example, `v1`) for stable releases.
-The runtime version is always read from `package.json`. Prereleases must use a
-prerelease tag such as `v1.2.3-rc.1`; they are published under the npm `next`
-tag and do not move the floating Action tag.
-
-The npm package must trust the GitHub Actions publisher for this repository and
-the workflow filename `release.yml`.
+generated Action bundle to the release tag, and advances the floating major
+Action tag (for example, `v1`) for stable releases. The runtime version is
+always read from `package.json`. Prereleases must use a prerelease tag such as
+`v1.2.3-rc.1` and do not move the floating Action tag.
 
 ## License
 
