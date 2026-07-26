@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { mkdir, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { exitCodeFor, inspect } from "./application.js";
 import {
@@ -11,7 +12,12 @@ import {
 import { renderJson, renderTerminal } from "./core/render.js";
 import { sanitizeText } from "./core/security.js";
 import type { InspectionResult } from "./core/types.js";
-import { VERSION } from "./version.js";
+
+const { version: VERSION } = createRequire(import.meta.url)(
+  "../package.json"
+) as {
+  version: string;
+};
 
 async function emit(
   result: InspectionResult,

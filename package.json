@@ -16,7 +16,6 @@
     "dist/cli.js",
     "dist/cli-arguments.js",
     "dist/application.js",
-    "dist/version.js",
     "dist/core/**/*.js",
     "schema",
     "README.md",
