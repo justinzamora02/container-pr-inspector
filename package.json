@@ -1,6 +1,6 @@
 {
   "name": "container-pr-inspector",
-  "version": "0.0.1",
+  "version": "0.0.4",
   "private": true,
   "description": "Compare Docker images across pull request revisions and enforce regression policy.",
   "license": "MIT",
