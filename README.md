@@ -1,52 +1,86 @@
 # Container PR Inspector
 
-`container-pr-inspector` is a bundled GitHub Action for inspecting container
-changes in pull requests. Its Action and local development entry points call
-the same inspection pipeline, policy evaluator, result schema, and renderers.
+`container-pr-inspector` is a GitHub Action that compares container images
+across a pull request. It reports image size and metadata changes, package and
+vulnerability deltas from Syft and Trivy, and optional policy failures.
 
-It compares Docker images for two Git revisions, reports size and metadata
-changes, identifies package and vulnerability deltas with Syft and Trivy, and
-optionally enforces regression gates. Fork pull requests are handled by a
-separate static-only mode that never invokes Docker or executes repository code.
+Fork pull requests use a static-only inspection path that does not build images,
+access registries, or execute repository code.
 
-## Requirements
+## Quick start
 
-- Linux with Docker and BuildKit for image inspection
-- Trivy and Syft on `PATH` for local scans; missing tools are reported explicitly
-- A local Git repository containing the referenced commits
+Add `.container-pr-inspector.yml`:
 
-The GitHub Action downloads pinned Trivy 0.72.0 and Syft 1.44.0 archives,
-verifies their committed SHA-256 values, and caches the verified tools.
+```yaml
+version: 1
 
-## Local development CLI
-
-```sh
-pnpm install
-pnpm build
-
-node dist/cli.js compare \
-  --base-sha "$BASE_SHA" \
-  --head-sha WORKTREE \
-  --config .container-pr-inspector.yml \
-  --format terminal
-
-node dist/cli.js audit \
-  --ref WORKTREE \
-  --config .container-pr-inspector.yml \
-  --format json \
-  --output result.json
+targets:
+  - name: app
+    dockerfile: Dockerfile
+    context: .
+    baseImage: ghcr.io/${owner}/${repo}:${sha}
 ```
 
-The CLI is not currently published to npm. Node.js 24 or newer is required to
-run it locally.
+Then add a pull-request workflow:
 
-Repository template values are resolved from `--repository owner/repo`,
-`GITHUB_REPOSITORY`, or a recognizable GitHub `origin` URL, in that order.
+```yaml
+name: Container inspection
 
-Exit codes are `0` for pass, warning, report-only, or neutral results; `1` for
-policy failure; and `2` for configuration or operational failure.
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write # Omit when comments are disabled.
+  packages: read      # Only for private GitHub Packages base images.
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - uses: docker/setup-buildx-action@v4
+      # Authenticate the Docker credential store here for private base images.
+      - uses: justinzamora02/container-pr-inspector@v1
+```
+
+The exact head SHA and full history are required so the Action can inspect the
+frozen head and base commits from the pull-request event. The Action supports
+`pull_request`, never `pull_request_target`.
+
+`pull-requests: write` is needed only for PR comments. `packages: read` applies
+only to private GitHub Packages images; other private registries require their
+own login step.
+
+Image inspection requires a Linux runner with Docker and BuildKit. The Action
+downloads pinned, checksum-verified scanner releases as needed and caches them;
+[the scanner manifest](src/scanner-manifest.ts) is the version source of truth.
+
+## How pull requests are inspected
+
+| Capability | Same-repository PR | Fork PR |
+| --- | --- | --- |
+| Docker and BuildKit | Builds and compares images | Never invoked |
+| Registry access | Resolves the configured base image | Never accessed |
+| Trivy image scan | Runs when enabled | Never runs |
+| Syft package scan | Runs when enabled | Never runs |
+| Dockerfile checks | Uses built-image metadata | Static analysis only |
+| Trivy configuration scan | Not used | Static analysis only |
+| Policy result | Gates are enforced | Neutral |
+
+Same-repository PRs can receive a job summary, JSON artifact, and one bot-owned
+comment. Fork PRs receive static Dockerfile and Trivy configuration findings, a
+neutral policy result, a job summary, and a JSON artifact.
+
+Fork mode never invokes Docker, BuildKit, a registry, image scanning, Syft,
+repository scripts, or custom Trivy policies.
 
 ## Configuration
+
+This example shows every available setting:
 
 ```yaml
 version: 1
@@ -77,75 +111,84 @@ gates:
   requireHealthcheck: true
 ```
 
-Only `${owner}`, `${repo}`, and `${sha}` are expanded. Build arguments are
-literal configuration values; environment interpolation, BuildKit secrets, and
-SSH forwarding are not supported. Empty gates are report-only.
+`targets` must contain at least one uniquely named image. Dockerfile and context
+paths are relative to the configuration file and must remain inside the
+repository. `baseImage` must include `${sha}` in its tag; `${owner}`, `${repo}`,
+and `${sha}` are the only expanded template values.
 
-## GitHub Action
+Trivy and Syft default to enabled. Gates are optional; with no configured gates,
+the Action reports findings without failing policy. Build arguments are literal
+configuration values. Environment interpolation, BuildKit secrets, and SSH
+forwarding are not supported.
 
-The Action supports `pull_request`, not `pull_request_target`. Check out the
-exact head SHA and retain history so the frozen event base SHA is available:
+## Action reference
 
-```yaml
-name: Container inspection
+Inputs:
 
-on:
-  pull_request:
+| Input | Default | Description |
+| --- | --- | --- |
+| `config-path` | `.container-pr-inspector.yml` | Path to the version 1 configuration file |
+| `github-token` | `${{ github.token }}` | Token used for PR comments and artifact metadata |
+| `comment` | `true` | Update the bot-owned comment on same-repository PRs |
+| `upload-artifact` | `true` | Upload the versioned JSON result |
+| `artifact-name` | `container-pr-inspector-pr-<number>` | Override the artifact name |
 
-permissions:
-  contents: read
-  packages: read
-  pull-requests: write
+Outputs:
 
-jobs:
-  inspect:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 0
-      - uses: docker/setup-buildx-action@v3
-      # Authenticate the Docker credential store here when the base image is private.
-      - uses: OWNER/container-pr-inspector@v1
-        with:
-          config-path: .container-pr-inspector.yml
-```
+| Output | Description |
+| --- | --- |
+| `conclusion` | Final inspection conclusion |
+| `result-path` | Absolute path to the JSON result |
+| `base-sha` | Frozen pull-request base SHA |
+| `head-sha` | Pull-request head SHA |
+| `base-digest` | First resolved base-image digest |
+| `regression-count` | New findings across all targets |
 
-Same-repository PRs receive a job summary, JSON artifact, and one bot-owned
-comment updated through the marker `<!-- container-pr-inspector:v1 -->`. Fork
-PRs receive static Dockerfile/Trivy configuration analysis, a neutral result for
-image-only gates, a summary, and an artifact. Fork mode never calls Docker,
-BuildKit, a registry, Syft, image scanning, repository scripts, or custom Trivy
-policies.
+The Action always attempts to write a job summary and result file. Artifact
+upload and same-repository PR comments can be disabled with the corresponding
+inputs. Fork PRs never receive a comment. The owned comment is updated through
+the marker `<!-- container-pr-inspector:v1 -->`.
 
 ## JSON result
 
 Every result uses `schemaVersion: 1` and records exact refs, resolved platform,
 image digests, tool and database metadata, normalized findings, gate
-evaluations, and a distinct conclusion. The distributable schema is exported as
-`container-pr-inspector/schema/result-v1.json`.
+evaluations, and a distinct conclusion. See the
+[version 1 JSON schema](schema/result-v1.schema.json).
 
-## Development
+## Local CLI
+
+The development CLI requires Node.js 24 or newer, Linux with Docker and
+BuildKit, Trivy and Syft on `PATH`, and a local Git repository containing the
+referenced commits. It is not currently published to npm.
 
 ```sh
 pnpm install
-pnpm verify
+pnpm build
+
+node dist/cli.js compare \
+  --base-sha "$BASE_SHA" \
+  --head-sha WORKTREE \
+  --config .container-pr-inspector.yml \
+  --format terminal
+
+node dist/cli.js audit \
+  --ref WORKTREE \
+  --config .container-pr-inspector.yml \
+  --format json \
+  --output result.json
 ```
 
-The `dist/` directory is generated and ignored on source branches. Release
-automation adds the Node 24 Action bundle only to release tags so that published
-Action references remain directly executable.
+Repository template values are resolved from `--repository owner/repo`,
+`GITHUB_REPOSITORY`, or a recognizable GitHub `origin` URL, in that order.
 
-## Releasing
+Exit codes are `0` for pass, warning, report-only, or neutral results; `1` for
+policy failure; and `2` for configuration or operational failure.
 
-Create and publish a GitHub Release from a `master` commit with a canonical
-SemVer tag such as `v1.2.3`. Publishing the release synchronizes `package.json`
-to the tag, runs the full verification suite, adds the version metadata and
-generated Action bundle to the release tag, and advances the floating major
-Action tag (for example, `v1`) for stable releases. The runtime version is
-always read from `package.json`. Prereleases must use a prerelease tag such as
-`v1.2.3-rc.1` and do not move the floating Action tag.
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development, validation, integration
+testing, generated-file, and release guidance.
 
 ## License
 
