@@ -59,7 +59,7 @@
     "@vercel/ncc": "^0.44.1",
     "eslint": "^10.8.0",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.38.0",
+    "typescript-eslint": "^8.66.0",
     "vitest": "^4.1.10"
   }
 }
